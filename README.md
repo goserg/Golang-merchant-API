@@ -26,8 +26,8 @@ Request Body schema: application/json
 Response Schema: application/json
 
 	{
-    	"task_id": integer
-    }
+		"task_id": integer
+	}
     
 #### Ответ (синхронный режим)
 
@@ -57,14 +57,14 @@ Request Body schema: application/json
 Response Schema: application/json
 
 	{
-    	"task_id":			integer,
-        "status":			string,
-        "elapsed_time":		string,
-        "lines_parsed":		integer,
-        "new_offers":		integer,
-        "updated_offers":	integer,
-        "errors":			integer
-    }
+		"task_id":		integer,
+		"status":		string,
+		"elapsed_time":		string,
+		"lines_parsed":		integer,
+		"new_offers":		integer,
+		"updated_offers":	integer,
+		"errors":		integer
+	}
     
     
 #### Коды ответов
@@ -97,15 +97,16 @@ Request Body schema: application/json
 Response Schema: application/json
 
 	{
-    	"offers": [
-        	{
-            	"offer_id": 	integer,
-                "name":			string,
-                "price":		float,
-                "quantity":		int,
-                "available":	boolean,
-                "seller_id":	integer
-            },
-            ...
-        ]
-    }
+		"offers": [
+			{
+				"offer_id":	integer,
+				"name":		string,
+				"price":	float,
+				"quantity":	int,
+				"available":	boolean,
+				"seller_id":	integer
+			},
+			...
+		]
+	}
+
