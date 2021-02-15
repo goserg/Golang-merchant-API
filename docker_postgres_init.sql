@@ -1,12 +1,26 @@
-create table sellers (
-	seller_id int PRIMARY KEY
+create table seller (
+	id integer,
+	PRIMARY KEY (id)
 );
-create table offers (
-	offer_id int NOT NULL,
+create table offer (
+	id integer,
 	name text NOT NULL,
-	price numeric NOT NULL,
-	quantity int NOT NULL,
+	price real NOT NULL,
+	quantity integer NOT NULL,
 	available boolean,
-	seller_id int REFERENCES sellers ON DELETE CASCADE,
-	CONSTRAINT unique_offer UNIQUE (offer_id, seller_id)
+	seller_id integer REFERENCES seller ON DELETE CASCADE,
+	CONSTRAINT offer_seller_id UNIQUE (id, seller_id),
+	PRIMARY KEY (id)
+);
+create table task_log (
+	id BIGSERIAL,
+	url char(2000),
+	seller_id integer REFERENCES seller ON DELETE CASCADE,
+	status text,
+	elapsed_time text,
+	lines_parsed integer,
+	new_offers integer,
+	updated_offers integer,
+	errors integer,
+	PRIMARY KEY (id)
 );

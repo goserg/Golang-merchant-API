@@ -96,17 +96,16 @@ Request Body schema: application/json
 
 Response Schema: application/json
 
-	{
-		"offers": [
-			{
-				"offer_id":	integer,
-				"name":		string,
-				"price":	float,
-				"quantity":	int,
-				"available":	boolean,
-				"seller_id":	integer
-			},
-			...
-		]
-	}
+	[
+		{
+			"offer_id":	integer,
+			"name":		string,
+			"price":	float,
+			"quantity":	int,
+			"available":	boolean,
+			"seller_id":	integer
+		},
+		...
+	]
+
 
