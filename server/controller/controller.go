@@ -22,7 +22,7 @@ type infoRequest struct {
 }
 
 type infoResponse struct {
-	TaskID        int    `json:"task_id"`
+	TaskID        int64  `json:"task_id"`
 	Status        string `json:"status"`
 	ElapsedTime   string `json:"elapsed_time"`
 	LinesParsed   int    `json:"lines_parsed"`
@@ -233,14 +233,16 @@ func (c *Controller) process(url string, sellerID int, logID int64) {
 
 	resp, err := http.Get(url)
 	if err != nil {
-		c.updateTaskLog(logID, "ERROR: Parsing error. Cannot load file", "", 0, 0, 0, 1)
+		info := infoResponse{logID, "ERROR: Parsing error. Cannot load file", "", 0, 0, 0, 0}
+		c.updateTaskLog(info)
 		return
 	}
 	defer resp.Body.Close()
 
 	f, err := parser.OpenReader(resp.Body)
 	if err != nil {
-		c.updateTaskLog(logID, "ERROR: Parsing error. Cannot read xlsx file", "", 0, 0, 0, 1)
+		info := infoResponse{logID, "ERROR: Parsing error. Cannot load file", "", 0, 0, 0, 0}
+		c.updateTaskLog(info)
 		return
 	}
 	offers, numberOfErrors := parser.ParseExcel(f)
@@ -261,22 +263,14 @@ func (c *Controller) process(url string, sellerID int, logID int64) {
 	}
 	t := time.Now()
 	elapsed := t.Sub(start)
-
-	c.updateTaskLog(logID, "Finished", fmt.Sprint(elapsed), len(offers), inserts, updates, numberOfErrors)
+	info := infoResponse{logID, "Finished", elapsed.String(), len(offers), inserts, updates, numberOfErrors}
+	c.updateTaskLog(info)
 }
 
-func (c *Controller) updateTaskLog(
-	id int64,
-	status string,
-	elapsedTime string,
-	linesParsed int,
-	newOffers int,
-	updatedOffers int,
-	errors int,
-) {
+func (c *Controller) updateTaskLog(info infoResponse) {
 	_, err := c.db.Exec(
 		`UPDATE task_log SET status=$1, elapsed_time=$2, lines_parsed=$3, new_offers=$4, updated_offers=$5, errors=$6 WHERE id=$7`,
-		status, elapsedTime, linesParsed, newOffers, updatedOffers, errors, id)
+		info.Status, info.ElapsedTime, info.LinesParsed, info.NewOffers, info.UpdatedOffers, info.Errors, info.TaskID)
 	if err != nil {
 		fmt.Println(err)
 	}
