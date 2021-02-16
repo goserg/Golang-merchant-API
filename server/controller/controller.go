@@ -43,6 +43,7 @@ type getOffersReq struct {
 type postOffersRequest struct {
 	URL      string `json:"url"`
 	SellerID int    `json:"seller_id"`
+	Async    bool   `json:"async"`
 }
 
 //NewController создает новый контроллер
@@ -61,88 +62,127 @@ func (c *Controller) InfoHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		json.Unmarshal(body, &reqData)
+		c.provideInfo(reqData.TaskID, w, r)
+	}
+}
 
-		log, hasTask := c.getTaskLog(reqData.TaskID)
+func (c *Controller) provideInfo(id int64, w http.ResponseWriter, r *http.Request) {
+	log, hasTask := c.getTaskLog(id)
 
-		if !hasTask {
-			respData := infoResponseError{"incorrect task_id"}
-			jData, err := json.Marshal(respData)
-			if err != nil {
-				fmt.Fprintln(w, "Internal server error")
-				return
-			}
-			w.Write(jData)
-			return
-		}
-		jData, err := json.Marshal(log)
+	if !hasTask {
+		respData := infoResponseError{"incorrect task_id"}
+		jData, err := json.Marshal(respData)
 		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintln(w, "Internal server error")
 			return
 		}
+		w.WriteHeader(http.StatusNotFound)
 		w.Write(jData)
+		return
 	}
+	jData, err := json.Marshal(log)
+	if err != nil {
+		fmt.Fprintln(w, "Internal server error")
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(jData)
 }
 
 //HomePage обработка запросов /
 func (c *Controller) HomePage(w http.ResponseWriter, r *http.Request) {
-
+	fmt.Fprint(w, "<html>Привет. Это API для загрузки данных по товарам в базу данных."+
+		"Документацию можно почитать на "+
+		"<a href='https://github.com/goserg/Golang-merchant-API'>https://github.com/goserg/Golang-merchant-API</a></html>",
+	)
 }
 
 //OffersHandler обработка запросов /offers
 func (c *Controller) OffersHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method == http.MethodGet {
-		var search getOffersReq
-		var offers []parser.Offer
-		body, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		json.Unmarshal(body, &search)
-
-		var query []string
-		if search.OfferID != 0 {
-			query = append(query, fmt.Sprintf("id=%d", search.OfferID))
-		}
-		if search.SellerID != 0 {
-			query = append(query, fmt.Sprintf("seller_id=%d", search.SellerID))
-		}
-		query = append(query, fmt.Sprintf(`"name" LIKE %s`, "'%"+search.NameSerch+"%'"))
-
-		rows, err := c.db.Query(`SELECT * FROM "offer" WHERE ` + fmt.Sprint(strings.Join(query, " AND ")))
-		for rows.Next() {
-			var offer parser.Offer
-			err = rows.Scan(&offer.OfferID, &offer.Name, &offer.Price, &offer.Quantity, &offer.Available, &offer.SellerID)
-			if err != nil {
-				fmt.Println(err)
-			}
-			offers = append(offers, offer)
-		}
-
-		jOffers, _ := json.Marshal(offers)
-		w.Write(jOffers)
+		c.getOfferHandler(w, r)
 	}
 	if r.Method == http.MethodPost {
-		var data postOffersRequest
-		body, err := ioutil.ReadAll(r.Body)
+		c.postOfferHandler(w, r)
+	}
+}
+
+func (c *Controller) getOfferHandler(w http.ResponseWriter, r *http.Request) {
+	var search getOffersReq
+	var offers []parser.Offer
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Println(err)
+		return
+	}
+	json.Unmarshal(body, &search)
+
+	var query []string
+	if search.OfferID != 0 {
+		query = append(query, fmt.Sprintf("id=%d", search.OfferID))
+	}
+	if search.SellerID != 0 {
+		query = append(query, fmt.Sprintf("seller_id=%d", search.SellerID))
+	}
+	query = append(query, fmt.Sprintf(`"name" LIKE %s`, "'%"+search.NameSerch+"%'"))
+
+	rows, err := c.db.Query(`SELECT * FROM "offer" WHERE ` + fmt.Sprint(strings.Join(query, " AND ")))
+	for rows.Next() {
+		var offer parser.Offer
+		err = rows.Scan(&offer.OfferID, &offer.Name, &offer.Price, &offer.Quantity, &offer.Available, &offer.SellerID)
 		if err != nil {
 			fmt.Println(err)
+		}
+		offers = append(offers, offer)
+	}
+	if len(offers) == 0 {
+		respData := infoResponseError{"No match"}
+		jData, err := json.Marshal(respData)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintln(w, "Internal server error")
 			return
 		}
-		json.Unmarshal(body, &data)
-		if data.URL != "" && data.SellerID != 0 {
-			if err = c.db.Ping(); err != nil {
-				fmt.Fprintf(w, "ERROR: Unable to connect to the Data Base")
-				return
-			}
-			if !c.hasSeller(data.SellerID) {
-				c.insertSeller(data.SellerID)
-			}
-			logID := c.insertTaskLog(data.URL, data.SellerID)
+		w.WriteHeader(http.StatusNotFound)
+		w.Write(jData)
+		return
+	}
+
+	jOffers, _ := json.Marshal(offers)
+	w.WriteHeader(http.StatusOK)
+	w.Write(jOffers)
+}
+
+func (c *Controller) postOfferHandler(w http.ResponseWriter, r *http.Request) {
+	var data postOffersRequest
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Println(err)
+		return
+	}
+	json.Unmarshal(body, &data)
+	if data.URL != "" && data.SellerID != 0 {
+		if err = c.db.Ping(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "ERROR: Unable to connect to the Data Base")
+			return
+		}
+		if !c.hasSeller(data.SellerID) {
+			c.insertSeller(data.SellerID)
+		}
+		logID := c.insertTaskLog(data.URL, data.SellerID)
+		if data.Async {
+			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, "Processing started, your task ID is %d\n", logID)
 			go c.process(data.URL, data.SellerID, logID)
+			return
 		}
+		c.process(data.URL, data.SellerID, logID)
+		c.provideInfo(logID, w, r)
 	}
 }
 
