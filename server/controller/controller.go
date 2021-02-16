@@ -53,6 +53,10 @@ func NewController(db *sql.DB) *Controller {
 
 //InfoHandler обработка запросов /info
 func (c *Controller) InfoHandler(w http.ResponseWriter, r *http.Request) {
+	if err := c.db.Ping(); err != nil {
+		respondWithError(w, "Unable to connect to the Data Base", http.StatusInternalServerError)
+		return
+	}
 	if r.Method == http.MethodGet {
 		w.Header().Set("Content-Type", "application/json")
 		var reqData infoRequest
@@ -66,19 +70,23 @@ func (c *Controller) InfoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func respondWithError(w http.ResponseWriter, errorText string, statusCode int) {
+	respData := infoResponseError{errorText}
+	jData, err := json.Marshal(respData)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintln(w, "Internal server error")
+		return
+	}
+	w.WriteHeader(statusCode)
+	w.Write(jData)
+}
+
 func (c *Controller) provideInfo(id int64, w http.ResponseWriter, r *http.Request) {
 	log, hasTask := c.getTaskLog(id)
 
 	if !hasTask {
-		respData := infoResponseError{"incorrect task_id"}
-		jData, err := json.Marshal(respData)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintln(w, "Internal server error")
-			return
-		}
-		w.WriteHeader(http.StatusNotFound)
-		w.Write(jData)
+		respondWithError(w, "incorrect task_id", http.StatusNotFound)
 		return
 	}
 	jData, err := json.Marshal(log)
@@ -100,6 +108,10 @@ func (c *Controller) HomePage(w http.ResponseWriter, r *http.Request) {
 
 //OffersHandler обработка запросов /offers
 func (c *Controller) OffersHandler(w http.ResponseWriter, r *http.Request) {
+	if err := c.db.Ping(); err != nil {
+		respondWithError(w, "Unable to connect to the Data Base", http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method == http.MethodGet {
 		c.getOfferHandler(w, r)
@@ -114,8 +126,7 @@ func (c *Controller) getOfferHandler(w http.ResponseWriter, r *http.Request) {
 	var offers []parser.Offer
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Println(err)
+		respondWithError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	json.Unmarshal(body, &search)
@@ -139,19 +150,15 @@ func (c *Controller) getOfferHandler(w http.ResponseWriter, r *http.Request) {
 		offers = append(offers, offer)
 	}
 	if len(offers) == 0 {
-		respData := infoResponseError{"No match"}
-		jData, err := json.Marshal(respData)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintln(w, "Internal server error")
-			return
-		}
-		w.WriteHeader(http.StatusNotFound)
-		w.Write(jData)
+		respondWithError(w, "No match", http.StatusNotFound)
 		return
 	}
 
-	jOffers, _ := json.Marshal(offers)
+	jOffers, err := json.Marshal(offers)
+	if err != nil {
+		fmt.Fprintln(w, "Internal server error")
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(jOffers)
 }
@@ -166,11 +173,6 @@ func (c *Controller) postOfferHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	json.Unmarshal(body, &data)
 	if data.URL != "" && data.SellerID != 0 {
-		if err = c.db.Ping(); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "ERROR: Unable to connect to the Data Base")
-			return
-		}
 		if !c.hasSeller(data.SellerID) {
 			c.insertSeller(data.SellerID)
 		}
