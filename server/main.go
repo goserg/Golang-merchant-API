@@ -14,11 +14,18 @@ import (
 const (
 	user     = "postgres"
 	password = "pass"
+	host     = "db"
+	port     = 5432
 	dbname   = "postgres"
 )
 
 func main() {
-	db, err := sql.Open("postgres", fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable", user, password, dbname))
+	db, err := sql.Open("postgres", fmt.Sprintf("postgres://%v:%v@%v:%v/%v?sslmode=disable",
+		user,
+		password,
+		host,
+		port,
+		dbname))
 	if err != nil {
 		panic(err)
 	}
@@ -32,5 +39,5 @@ func main() {
 
 	fmt.Println("API started.")
 
-	log.Fatal(http.ListenAndServe(":8001", nil))
+	log.Fatal(http.ListenAndServe(":8000", nil))
 }

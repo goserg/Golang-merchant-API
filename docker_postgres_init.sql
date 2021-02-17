@@ -9,8 +9,7 @@ create table offer (
 	quantity integer NOT NULL,
 	available boolean,
 	seller_id integer REFERENCES seller ON DELETE CASCADE,
-	CONSTRAINT offer_seller_id UNIQUE (id, seller_id),
-	PRIMARY KEY (id)
+	CONSTRAINT offer_seller_id UNIQUE (id, seller_id)
 );
 create table task_log (
 	id BIGSERIAL,

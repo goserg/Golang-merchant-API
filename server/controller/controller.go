@@ -53,10 +53,10 @@ func NewController(db *sql.DB) *Controller {
 
 //InfoHandler обработка запросов /info
 func (c *Controller) InfoHandler(w http.ResponseWriter, r *http.Request) {
-	if err := c.db.Ping(); err != nil {
+	/* if err := c.db.Ping(); err != nil {
 		respondWithError(w, "Unable to connect to the Data Base", http.StatusInternalServerError)
 		return
-	}
+	} */
 	if r.Method == http.MethodGet {
 		w.Header().Set("Content-Type", "application/json")
 		var reqData infoRequest
@@ -108,10 +108,10 @@ func (c *Controller) HomePage(w http.ResponseWriter, r *http.Request) {
 
 //OffersHandler обработка запросов /offers
 func (c *Controller) OffersHandler(w http.ResponseWriter, r *http.Request) {
-	if err := c.db.Ping(); err != nil {
+	/* 	if err := c.db.Ping(); err != nil {
 		respondWithError(w, "Unable to connect to the Data Base", http.StatusInternalServerError)
 		return
-	}
+	} */
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method == http.MethodGet {
 		c.getOfferHandler(w, r)
@@ -229,8 +229,6 @@ func (c *Controller) insertTaskLog(url string, sellerID int) int64 {
 }
 
 func (c *Controller) process(url string, sellerID int, logID int64) {
-	start := time.Now()
-
 	resp, err := http.Get(url)
 	if err != nil {
 		info := infoResponse{logID, "ERROR: Parsing error. Cannot load file", "", 0, 0, 0, 0}
@@ -245,6 +243,8 @@ func (c *Controller) process(url string, sellerID int, logID int64) {
 		c.updateTaskLog(info)
 		return
 	}
+
+	start := time.Now()
 	offers, numberOfErrors := parser.ParseExcel(f)
 
 	updates := 0
@@ -263,7 +263,7 @@ func (c *Controller) process(url string, sellerID int, logID int64) {
 	}
 	t := time.Now()
 	elapsed := t.Sub(start)
-	info := infoResponse{logID, "Finished", elapsed.String(), len(offers), inserts, updates, numberOfErrors}
+	info := infoResponse{logID, "Finished", elapsed.String(), len(offers) + numberOfErrors, inserts, updates, numberOfErrors}
 	c.updateTaskLog(info)
 }
 
