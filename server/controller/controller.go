@@ -53,10 +53,6 @@ func NewController(db *sql.DB) *Controller {
 
 //InfoHandler обработка запросов /info
 func (c *Controller) InfoHandler(w http.ResponseWriter, r *http.Request) {
-	/* if err := c.db.Ping(); err != nil {
-		respondWithError(w, "Unable to connect to the Data Base", http.StatusInternalServerError)
-		return
-	} */
 	if r.Method == http.MethodGet {
 		w.Header().Set("Content-Type", "application/json")
 		var reqData infoRequest
@@ -94,7 +90,11 @@ func (c *Controller) provideInfo(id int64, w http.ResponseWriter, r *http.Reques
 		fmt.Fprintln(w, "Internal server error")
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+	if log.Status == "ERROR: Parsing error. Cannot load file" {
+		w.WriteHeader(http.StatusBadRequest)
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
 	w.Write(jData)
 }
 
@@ -108,10 +108,6 @@ func (c *Controller) HomePage(w http.ResponseWriter, r *http.Request) {
 
 //OffersHandler обработка запросов /offers
 func (c *Controller) OffersHandler(w http.ResponseWriter, r *http.Request) {
-	/* 	if err := c.db.Ping(); err != nil {
-		respondWithError(w, "Unable to connect to the Data Base", http.StatusInternalServerError)
-		return
-	} */
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method == http.MethodGet {
 		c.getOfferHandler(w, r)
@@ -179,7 +175,7 @@ func (c *Controller) postOfferHandler(w http.ResponseWriter, r *http.Request) {
 		logID := c.insertTaskLog(data.URL, data.SellerID)
 		if data.Async {
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, "Processing started, your task ID is %d\n", logID)
+			fmt.Fprintf(w, "Processing started, your task ID is %d", logID)
 			go c.process(data.URL, data.SellerID, logID)
 			return
 		}
@@ -213,18 +209,13 @@ func (c *Controller) hasSeller(sellerID int) bool {
 }
 
 func (c *Controller) insertSeller(sellerID int) {
-	_, err := c.db.Exec(fmt.Sprintf(`INSERT INTO "seller" ("id") VALUES(%d)`, sellerID))
-	if err != nil {
-		fmt.Println(err)
-	}
+	c.db.Exec(fmt.Sprintf(`INSERT INTO "seller" ("id") VALUES(%d)`, sellerID))
+
 }
 
 func (c *Controller) insertTaskLog(url string, sellerID int) int64 {
 	var lid int64
-	err := c.db.QueryRow(`INSERT INTO "task_log" ("status", "url", "seller_id") VALUES('Processing...', $1, $2) RETURNING id`, url, sellerID).Scan(&lid)
-	if err != nil {
-		fmt.Println(err)
-	}
+	c.db.QueryRow(`INSERT INTO "task_log" ("status", "url", "seller_id") VALUES('Processing...', $1, $2) RETURNING id`, url, sellerID).Scan(&lid)
 	return lid
 }
 
@@ -268,20 +259,16 @@ func (c *Controller) process(url string, sellerID int, logID int64) {
 }
 
 func (c *Controller) updateTaskLog(info infoResponse) {
-	_, err := c.db.Exec(
+	c.db.Exec(
 		`UPDATE task_log SET status=$1, elapsed_time=$2, lines_parsed=$3, new_offers=$4, updated_offers=$5, errors=$6 WHERE id=$7`,
-		info.Status, info.ElapsedTime, info.LinesParsed, info.NewOffers, info.UpdatedOffers, info.Errors, info.TaskID)
-	if err != nil {
-		fmt.Println(err)
-	}
+		info.Status, info.ElapsedTime, info.LinesParsed, info.NewOffers, info.UpdatedOffers, info.Errors, info.TaskID,
+	)
 }
 
 func (c *Controller) updateOffer(offer parser.Offer, sellerID int) {
-	_, err := c.db.Exec(`UPDATE offer SET name=$1, price=$2, quantity=$3, available=$4 WHERE id=$5 AND seller_id=$6`,
-		offer.Name, offer.Price, offer.Quantity, offer.Available, offer.OfferID, sellerID)
-	if err != nil {
-		fmt.Println(err)
-	}
+	c.db.Exec(`UPDATE offer SET name=$1, price=$2, quantity=$3, available=$4 WHERE id=$5 AND seller_id=$6`,
+		offer.Name, offer.Price, offer.Quantity, offer.Available, offer.OfferID, sellerID,
+	)
 }
 
 func (c *Controller) getOffer(offerID int, sellerID int) (*parser.Offer, bool) {
@@ -298,13 +285,10 @@ func (c *Controller) getOffer(offerID int, sellerID int) (*parser.Offer, bool) {
 }
 
 func (c *Controller) insertOffer(offer parser.Offer, sellerID int) {
-	_, err := c.db.Exec(
+	c.db.Exec(
 		`INSERT INTO public.offer
 		(id, name, price, quantity, available, seller_id)
 		VALUES($1, $2, $3, $4, $5, $6);`,
 		offer.OfferID, offer.Name, offer.Price, offer.Quantity, offer.Available, sellerID,
 	)
-	if err != nil {
-		fmt.Println(err)
-	}
 }

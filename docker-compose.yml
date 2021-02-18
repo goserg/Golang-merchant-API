@@ -18,6 +18,9 @@ services:
   links:
    - "db"
    - "excel_mock"
+  depends_on:
+   - db
+   - excel_mock
   
  excel_mock:
   build: mock_excel_api/.
