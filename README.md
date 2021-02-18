@@ -109,6 +109,13 @@ Response Schema: application/json
 	]
 
 
+### Диаграммы последовательности
+
+![diagrams POST](img/Diagrams_POST.tif?raw=true "diagrams POST")
+
+![diagrams GET](img/Diagrams_GET.tif?raw=true "diagrams GET")
+
+
 ### Нагрузочное тестирование
 Нагрузочное тестирование проводилось на файле размером в 10 000 позиций.
 
