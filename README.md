@@ -111,9 +111,9 @@ Response Schema: application/json
 
 ### Диаграммы последовательности
 
-![diagrams POST](img/Diagrams_POST.tif?raw=true "diagrams POST")
+![diagrams POST](img/Diagrams_POST.png?raw=true "diagrams POST")
 
-![diagrams GET](img/Diagrams_GET.tif?raw=true "diagrams GET")
+![diagrams GET](img/Diagrams_GET.png?raw=true "diagrams GET")
 
 
 ### Нагрузочное тестирование
